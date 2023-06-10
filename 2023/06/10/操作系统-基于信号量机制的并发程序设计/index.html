@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="renderer" content="webkit">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="google-site-verification" content="TZE0rZyIqLl10trYu3BWBWa1Vmz6HFwhb2OcNEK4u-s" />
+     <link rel="shortcut icon" href= /img/favicon.ico >
+    <title>
+        Hexo
+    </title>
+    <meta name="description" content= Hello，我是陈小宏，很高兴认识你！ >
+    <meta name="keywords" content= Blog,Hexo,Theme,陈小宏,ChenXiaoHong >
+    
+<link rel="stylesheet" href="/libs/highlight/styles/monokai-sublime.css">
+
+    
+<link rel="stylesheet" href="/libs/font-awesome/css/font-awesome.min.css">
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 6.3.0"></head>
+<body id="bodyx">
+    <div class="hd posts">
+    <a href="/index.html"><i class="fa fa-home
+ replay-btn" aria-hidden="true"></i></a>
+    <div class="post-title">
+        <p>
+            操作系统-基于信号量机制的并发程序设计
+        </p>
+        <hr>
+    </div>
+    <div class="post-content">
+        <p><strong>一、实验题目</strong></p>
+<p>基于信号量机制的并发程序设计</p>
+<p><strong>二、实验目的</strong></p>
+<p>(1) 回顾操作系统进程、线程的有关概念，针对经典的同步、互斥、死锁与饥饿问题进行并发 </p>
+<p>程序设计。 </p>
+<p>(2) 了解互斥体对象，利用互斥与同步操作编写读者-写者问题的并发程序，加深对 P (即 </p>
+<p>semWait)、V(即 semSignal)原语以及利用 P、V 原语进行进程间同步与互斥操作的理解。 </p>
+<p>(3) 理解 Linux 支持的信息量机制，利用 IPC 的信号量系统调用编程实现哲学家进餐问题。 </p>
+<p><strong>三、总体设计（含背景知识或基本原理与算法、或模块介绍、设计步骤等）</strong></p>
+<p>读者-写者问题：</p>
+<p>*在读者-写者问题中，多个读者可以同时读取共享资源，但只能有一个写者可以写入共享资源。</p>
+<p>*使用互斥体对象（mutex）实现对共享资源的互斥访问。</p>
+<p>*使用信号量（semaphore）实现读者和写者之间的同步和互斥操作。</p>
+<p>存在一个多进程共享的数据区，该数据区可以是一个文件或一块内存空间，甚至可以是一组寄存器，有些进程(reader)只读取这个数据区中的数据，有些进程(writer)只往数据区中写数据。，此外，还必须满足：</p>
+<p>1.任意数量的读进程可同时读这个文件。</p>
+<p>2.一次只有一个写进程可以写文件</p>
+<p>3.若写进程正在写文件，则禁止任何读进程读文件。</p>
+<p>书上实现的读者优先的算法思路是：</p>
+<p>写进程比较简单，信号量WriteSemaphore用于实施排斥，只要一个写进程正在访问数据区，其他写进程和读进程就都不能访问它。读进程也使用WriteSemaphore实施互斥，但为了允许多个读进程，没有读进程正在读时，第一个试图读的读进程需要在WriteSemaphore上等待。当至少已有一个读进程在读时，随后的读进程无须等待，可以直接进入。readcount用于记录读进程的数量，信号量XSemaphore用于确保readcount被正确地更新。</p>
+<p><strong>四、详细设计（含主要的数据结构、程序流程图、关键代码等）</strong></p>
+<p>读者-写者问题的并发程序设计</p>
+<p>使用互斥体对象mutex来保证对共享资源的互斥访问。</p>
+<p>使用两个信号量readers和writers来控制读者和写者之间的同步和互斥操作。</p>
+<p>读者线程：</p>
+<p>在进入临界区之前，使用sem_wait(&amp;readers)来等待其他读者完成读取操作。</p>
+<p>进入临界区读取共享资源。</p>
+<p>使用sem_post(&amp;readers)来释放读者信号量。</p>
+<p>写者线程：</p>
+<p>在进入临界区之前，使用sem_wait(&amp;writers)来等待其他写者完成写入操作。</p>
+<p>进入临界区写入共享资源。</p>
+<p>使用sem_post(&amp;writers)来释放写者信号量。</p>
+<p>代码：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;windows.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MAX_READER_NUM 512</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> READER_NUM 3</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> WRITER_NUM 2</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MOD 100</span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> readcount = <span class="number">0</span>;</span><br><span class="line">HANDLE WriteSemaphore; <span class="comment">//实现读写互斥</span></span><br><span class="line">HANDLE XSemaphore; <span class="comment">//对于人数修改的互斥量</span></span><br><span class="line"><span class="function">DWORD WINAPI <span class="title">reader</span><span class="params">(LPVOID)</span></span>; <span class="comment">//读者线程</span></span><br><span class="line"><span class="function">DWORD WINAPI <span class="title">writer</span><span class="params">(LPVOID)</span></span>; <span class="comment">//写者线程</span></span><br><span class="line"><span class="type">bool</span> p_ccontinue = <span class="literal">true</span>;    <span class="comment">//控制程序结束</span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> test = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">//初始化两个信号量</span></span><br><span class="line">    <span class="comment">/*结构体指针;信号量对象的初始计数;信号量对象的最大计数;信号量对象的名称*/</span></span><br><span class="line">    WriteSemaphore = <span class="built_in">CreateSemaphore</span>(<span class="literal">NULL</span>,<span class="number">1</span>,MAX_READER_NUM,<span class="literal">NULL</span>);</span><br><span class="line">    XSemaphore = <span class="built_in">CreateSemaphore</span>(<span class="literal">NULL</span>,<span class="number">1</span>,MAX_READER_NUM,<span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//用WindowsAPI模拟课本上 parbegin(reader,writer);</span></span><br><span class="line">    <span class="comment">//总的线程数</span></span><br><span class="line">    HANDLE hThreads[READER_NUM + WRITER_NUM]; <span class="comment">//各线程的 handle</span></span><br><span class="line">    DWORD readerID[READER_NUM]; <span class="comment">//读者线程的标识符</span></span><br><span class="line">    DWORD writerID[WRITER_NUM]; <span class="comment">//写者线程的标识符</span></span><br><span class="line">    <span class="comment">//创建读者线程</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i=<span class="number">0</span>; i&lt;READER_NUM; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        hThreads[i]=<span class="built_in">CreateThread</span>(<span class="literal">NULL</span>,<span class="number">0</span>,reader,<span class="literal">NULL</span>,<span class="number">0</span>,&amp;readerID[i]);</span><br><span class="line">        <span class="keyword">if</span> (hThreads[i]==<span class="literal">NULL</span>)</span><br><span class="line">            <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//创建写者线程</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i=<span class="number">0</span>; i&lt;WRITER_NUM; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        hThreads[READER_NUM+i]=<span class="built_in">CreateThread</span>(<span class="literal">NULL</span>,<span class="number">0</span>,writer,<span class="literal">NULL</span>,<span class="number">0</span>,&amp;writerID[i]);</span><br><span class="line">        <span class="keyword">if</span> (hThreads[i]==<span class="literal">NULL</span>)</span><br><span class="line">            <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">while</span>(p_ccontinue)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">if</span>(<span class="built_in">getchar</span>())  <span class="comment">//按回车后终止程序运行</span></span><br><span class="line">        &#123;</span><br><span class="line">            p_ccontinue = <span class="literal">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//读者阅读</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">READUNIT</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    cout&lt;&lt;<span class="string">&quot;一个读者开始阅读:&quot;</span>;</span><br><span class="line">    cout&lt;&lt;test&lt;&lt;endl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//写者写</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">WRITEUNIT</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    cout&lt;&lt;<span class="string">&quot;写者开始写:&quot;</span>;</span><br><span class="line">    test = (test+<span class="number">1</span>) % MOD;</span><br><span class="line">    cout&lt;&lt;test&lt;&lt;endl;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//读者</span></span><br><span class="line"><span class="function">DWORD WINAPI <span class="title">reader</span><span class="params">(LPVOID lpPara)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">while</span>(p_ccontinue)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="built_in">WaitForSingleObject</span>(XSemaphore,INFINITE); <span class="comment">//semWait(x);</span></span><br><span class="line">        readcount++;</span><br><span class="line">        <span class="keyword">if</span>(readcount == <span class="number">1</span>)  <span class="comment">//第一个读者来了</span></span><br><span class="line">            <span class="built_in">WaitForSingleObject</span>(WriteSemaphore,INFINITE); <span class="comment">//semWait(wsem);</span></span><br><span class="line">        <span class="built_in">ReleaseSemaphore</span>(XSemaphore,<span class="number">1</span>,<span class="literal">NULL</span>); <span class="comment">//semSignal(x);</span></span><br><span class="line">        <span class="built_in">READUNIT</span>();</span><br><span class="line">        <span class="comment">//阅读完毕</span></span><br><span class="line">        <span class="built_in">WaitForSingleObject</span>(XSemaphore,INFINITE); <span class="comment">//semWait(x);</span></span><br><span class="line">        readcount--;</span><br><span class="line">        <span class="comment">//无读者，释放资源</span></span><br><span class="line">        <span class="keyword">if</span>(readcount == <span class="number">0</span>)</span><br><span class="line">            <span class="built_in">ReleaseSemaphore</span>(WriteSemaphore,<span class="number">1</span>,<span class="literal">NULL</span>); <span class="comment">//semSignal(wsem);</span></span><br><span class="line">        <span class="built_in">ReleaseSemaphore</span>(XSemaphore,<span class="number">1</span>,<span class="literal">NULL</span>); <span class="comment">//semSignal(x);</span></span><br><span class="line">        <span class="built_in">Sleep</span>(<span class="number">3000</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//写者</span></span><br><span class="line"><span class="function">DWORD WINAPI <span class="title">writer</span><span class="params">(LPVOID lpPara)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">while</span>(p_ccontinue)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="built_in">WaitForSingleObject</span>(WriteSemaphore,INFINITE); <span class="comment">//semWait(wsem);</span></span><br><span class="line">        <span class="built_in">WRITEUNIT</span>();</span><br><span class="line">        <span class="built_in">ReleaseSemaphore</span>(WriteSemaphore,<span class="number">1</span>,<span class="literal">NULL</span>); <span class="comment">//semSignal(wsem);</span></span><br><span class="line">        <span class="built_in">Sleep</span>(<span class="number">2000</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>五、实验结果与分析</strong></p>
+<p>这段代码的实验结果是模拟了读者和写者对共享资源的并发访问。由于读者和写者之间的同步和互斥操作，读者和写者会交替地对共享资源进行读取和写入操作。通过输出信息可以观察到读者和写者的行为。</p>
+<p>值得注意的是，读者和写者之间的调度是不确定的，所以每次运行结果可能略有不同。读者和写者的执行顺序会根据操作系统的调度策略和线程的竞争情况而有所变化。</p>
+<p>总体来说，这段代码演示了使用互斥体和信号量来实现读者-写者问题的基本思路和实现方式。通过合理地控制互斥访问和同步操作，可以确保多个读者和写者之间对共享资源的正确访问和修改。</p>
+<p><img src="/img/1686358372472.png" alt="1686358372472"></p>
+<p><strong>六、小结与心得体会</strong></p>
+<p>在这个实验中，我们通过使用互斥体对象和信号量机制，成功设计了一个并发程序来解决读者-写者问题。通过这个实验，我得出了以下的小结和心得体会：</p>
+<p>1.熟悉操作系统的进程和线程概念：在设计并发程序之前，我们需要对操作系统的进程和线程有一定的了解。了解进程和线程的概念、特点以及它们之间的关系，能够帮助我们更好地理解并发编程的问题和解决方法。</p>
+<p>2.理解同步和互斥的重要性：在多个线程同时访问共享资源时，必须确保对共享资源的访问是同步和互斥的。通过使用互斥体对象和信号量，我们可以实现线程之间的同步和互斥操作，避免数据竞争和不一致的结果。</p>
+<p>3.学会使用信号量机制：信号量是一种常用的并发编程机制，它可以用来控制并发线程之间的访问和同步。在本实验中，我们使用信号量来控制读者和写者之间的访问和修改共享资源的操作。学会使用信号量的原语，如sem_wait和sem_post，能够有效地实现线程之间的同步和互斥。</p>
+<p>4.注意死锁和饥饿问题：在设计并发程序时，需要注意死锁和饥饿问题的可能性。死锁是指多个线程互相等待对方释放资源而无法继续执行的情况，而饥饿则是指某些线程由于资源分配不均而无法得到执行的情况。在本实验中，我们通过合理地设计互斥和同步操作，避免了死锁和饥饿的发生。</p>
+<p>5.调试并发程序的挑战：并发程序的调试相对复杂，因为线程的执行顺序是不确定的，可能存在竞争条件和难以重现的错误。在本实验中，我们可以通过输出信息来观察并验证读者和写者的行为，以及共享资源的正确访问和修改。同时，运用调试工具和技巧可以帮助我们更好地理解程序的执行流程和发现潜在的问题。</p>
+<p>通过完成这个实验，我对并发程序设计有了更深入的理解。同时，我也意识到在实际开发中，合理地设计并发程序是至关重要的，它涉及到线程之间的协作和资源管理。合理使用同步和互斥机制，能够提高程序的性能、可靠性和正确性，避免出现数据竞争和不一致的结果。并发编程是一项挑战，但也是一项有趣和重要的技能，对于开发高效、可扩展的应用程序至关重要。</p>
+
+    </div>
+
+    
+        <hr class="fhr">
+        <div id="vcomments"></div>
+    
+</div>
+    <div class="footer" id="footer">
+    <p><h4>Copyright © 2020 | Author: 陈小宏 | Theme By <a class="theme-author" target="_blank" rel="noopener" href="https://github.com/Xunzhuo/hexo-theme-coder" style="font-size:14px; color: #969696">Coder</a></h4>
+    
+        <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+        <span id="busuanzi_container_site_pv">Page Views: <span id="busuanzi_value_site_pv"></span></span>
+        <span class="post-meta-divider">|</span>
+        <span id="busuanzi_container_site_uv">Unique Visitors: <span id="busuanzi_value_site_uv"></span></span>
+    
+    <label class="el-switch el-switch-blue el-switch-sm" style="vertical-align: sub;">
+        <input type="checkbox" name="switch" id="update_style">
+        <span class="el-switch-style"></span>
+    </label>
+
+    <!--         <script type="text/javascript">
+    var cnzz_protocol = (("https:" == document.location.protocol) ? "https://" : "http://");
+    document.write(unescape("%3Cspan id='cnzz_stat_icon_1278548644'%3E%3C/span%3E%3Cscript src='" + cnzz_protocol + "v1.cnzz.com/stat.php%3Fid%3D1278548644%26show%3Dpic1' type='text/javascript'%3E%3C/script%3E"));
+    </script> -->
+</p>
+</div>
+
+<input type="hidden" id="web_style" value="light">
+<input type="hidden" id="valine_appid" value="">
+<input type="hidden" id="valine_appKey" value="">
+
+<script src="/libs/jquery.min.js"></script>
+
+
+<script src="/libs/highlight/highlight.pack.js"></script>
+
+<script src='//cdn.jsdelivr.net/npm/valine@1.3.10/dist/Valine.min.js'></script>
+
+<script src="/js/js.js"></script>
+
+<style type="text/css">
+.v * {
+color: #698fca;
+}
+.v .vlist .vcard .vhead .vsys {
+color: #3a3e4a;
+}
+.v .vlist .vcard .vh .vmeta .vat {
+color: #638fd5;
+}
+.v .vlist .vcard .vhead .vnick {
+color: #6ba1ff;
+}
+.v a {
+color: #8696b1;
+}
+.v .vlist .vcard .vhead .vnick:hover {
+color: #669bfc;
+}
+</style>
+    <script type="text/javascript" color="173,174,173" opacity='1' zIndex="-2" count="99" src="//cdn.bootcss.com/canvas-nest.js/1.0.0/canvas-nest.min.js"></script>
+</body>
+</html>
